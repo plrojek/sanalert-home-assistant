@@ -1,0 +1,25 @@
+{
+  "entity": {
+    "sensor": {
+      "level": {
+        "default": "mdi:shield-outline",
+        "state": {
+          "quiet": "mdi:shield-check-outline",
+          "activity": "mdi:shield-alert-outline",
+          "approaching": "mdi:shield-alert",
+          "near": "mdi:alarm-light",
+          "no_data": "mdi:shield-off-outline",
+          "out_of_range": "mdi:map-marker-off-outline"
+        }
+      }
+    },
+    "binary_sensor": {
+      "official": {
+        "default": "mdi:bullhorn-outline",
+        "state": {
+          "on": "mdi:bullhorn"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Dodaj miejsce",
+        "description": "SanAlert pokazuje, czy drony lub pociski śledzone za granicą zmierzają w stronę tego miejsca. To nie jest oficjalny system ostrzegania: nie zastępuje syren, Alertu RCB ani komunikatów służb. Miejsce zostaje w Home Assistant; integracja pobiera tylko publiczny dokument z sytuacją, ten sam dla wszystkich.",
+        "data": {
+          "name": "Nazwa",
+          "location": "Miejsce",
+          "language": "Język opisów"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Nie udało się połączyć z SanAlert. Spróbuj za chwilę.",
+      "outside_poland": "SanAlert liczy poziomy tylko dla Polski. Wybierz miejsce w Polsce."
+    },
+    "abort": {
+      "already_configured": "To miejsce (jego kwadrat ok. 11 km) jest już dodane."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "level": {
+        "name": "Poziom",
+        "state": {
+          "quiet": "Spokój",
+          "activity": "Aktywność",
+          "approaching": "Zbliża się",
+          "near": "Blisko",
+          "no_data": "Brak danych",
+          "out_of_range": "Poza zasięgiem"
+        }
+      }
+    },
+    "binary_sensor": {
+      "official": {
+        "name": "Komunikat oficjalny dla województwa"
+      }
+    }
+  },
+  "selector": {
+    "language": {
+      "options": {
+        "pl": "Polski",
+        "en": "English",
+        "uk": "Українська"
+      }
+    }
+  }
+}

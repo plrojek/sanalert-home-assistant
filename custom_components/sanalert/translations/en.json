@@ -1,0 +1,51 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Add a place",
+        "description": "SanAlert shows whether drones or missiles tracked across the border are heading for this place. It is not an official warning system: it does not replace sirens, Alert RCB or instructions from the services. The place stays in Home Assistant; it only fetches the public state document that everybody gets.",
+        "data": {
+          "name": "Name",
+          "location": "Place",
+          "language": "Language of the descriptions"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not reach SanAlert. Try again in a moment.",
+      "outside_poland": "SanAlert works out levels for Poland only. Choose a place in Poland."
+    },
+    "abort": {
+      "already_configured": "This place (its ~11 km square) is already added."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "level": {
+        "name": "Level",
+        "state": {
+          "quiet": "Quiet",
+          "activity": "Activity",
+          "approaching": "Approaching",
+          "near": "Near",
+          "no_data": "No data",
+          "out_of_range": "Out of range"
+        }
+      }
+    },
+    "binary_sensor": {
+      "official": {
+        "name": "Official message for the voivodeship"
+      }
+    }
+  },
+  "selector": {
+    "language": {
+      "options": {
+        "pl": "Polski",
+        "en": "English",
+        "uk": "Українська"
+      }
+    }
+  }
+}
