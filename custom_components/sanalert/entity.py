@@ -31,7 +31,8 @@ class SanAlertEntity(CoordinatorEntity[SanAlertCoordinator]):
     @property
     def available(self) -> bool:
         # Blind is not calm: with no document, or an old one, the level reads "no_data" rather than
-        # the entity going unavailable, so an automation can act on it.
+        # the entity going unavailable, so an automation can act on it. The official sensor has no
+        # such state and goes unavailable instead (binary_sensor.py).
         return True
 
     def _summary(self) -> dict[str, Any]:

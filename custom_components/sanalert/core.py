@@ -23,9 +23,10 @@ def cell_id(lat: float, lon: float) -> str:
 
 def _parse(ts: str | None) -> dt.datetime | None:
     try:
-        return dt.datetime.fromisoformat(ts.replace("Z", "+00:00")) if ts else None
+        at = dt.datetime.fromisoformat(ts.replace("Z", "+00:00")) if isinstance(ts, str) and ts else None
     except ValueError:
         return None
+    return at.replace(tzinfo=dt.timezone.utc) if at and at.tzinfo is None else at
 
 
 def age_s(state: dict, now: dt.datetime) -> float | None:
@@ -50,20 +51,57 @@ def degraded(state: dict | None) -> bool:
     return bool(state) and (state.get("health") or {}).get("status") == "degraded"
 
 
+def official_available(state: dict | None, now: dt.datetime) -> bool:
+    """Whether the official layer can be told at all: a document no older than rule 2's 60 s, with
+    RCB's and RSO's feeds both readable. Without it "no message" would be a guess, not a fact."""
+    if not state:
+        return False
+    age = age_s(state, now)
+    sources = (state.get("health") or {}).get("sources") or {}
+    return age is not None and age <= MAX_AGE_S and all(
+        (sources.get(name) or {}).get("status") != "unknown" for name in ("rcb", "rso"))
+
+
+RCB_STANDS = dt.timedelta(hours=12)
+
+
+def in_force(it: dict, now: dt.datetime) -> bool:
+    """Rule 4's "current": not cancelled, not an exercise or a cancellation; an RSO message while the
+    server publishes it; an RCB alert until its end, and at most 12 hours after the latest sending we
+    saw. It used to be its date only: the alert of 24.09 at 22:01 went off at midnight, its end came
+    at 05:40. The same rule as SanAlert's website and apps."""
+    if it.get("cancelled") or it.get("class") in ("exercise", "cancellation"):
+        return False
+    return it.get("source") != "rcb" or _rcb_stands(it, now)
+
+
+def _rcb_stands(it: dict, now: dt.datetime) -> bool:
+    """From its latest sending: the first, or sent again (an update that is not an end). With no time
+    of ours for any, the day it is dated, as before."""
+    updates = [u for u in it.get("updates") or [] if isinstance(u, dict)]
+    times = [it.get("first_seen"), *(u.get("seen") for u in updates if not u.get("ended"))]
+    sent = [at for at in map(_parse, times) if at]
+    if not sent:
+        return it.get("date") == now.astimezone(WARSAW).date().isoformat()
+    return now < max(sent) + RCB_STANDS
+
+
+def area(it: dict) -> list[str]:
+    """Where a current message stands: for an RCB alert whose end went to part of its area, only the
+    rest (24.09, 07:05: the end went to lubelskie, podkarpackie stood)."""
+    rest = it.get("regions_in_force")
+    return rest if isinstance(rest, list) else it.get("regions") or []
+
+
 def current_official(state: dict | None, voivodeship: str | None, now: dt.datetime) -> list[dict]:
-    """Official messages in force for the voivodeship (rule 4): not cancelled, not an exercise or a
-    cancellation, and an RCB alert only on its own date in Poland. A message narrowed to powiats
-    still counts for its whole voivodeship here: this says "for the voivodeship", never "for you"."""
+    """Official messages in force for the voivodeship (rule 4, `in_force` and `area`). A message
+    narrowed to powiats still counts for its whole voivodeship here: this says "for the voivodeship",
+    never "for you"."""
     if not state or not voivodeship:
         return []
-    today = now.astimezone(WARSAW).date().isoformat()
     out = []
     for it in state.get("official") or []:
-        if it.get("cancelled") or it.get("class") in ("exercise", "cancellation"):
-            continue
-        if it.get("source") == "rcb" and it.get("date") != today:
-            continue
-        if voivodeship not in (it.get("regions") or []):
+        if not isinstance(it, dict) or not in_force(it, now) or voivodeship not in area(it):
             continue
         out.append({"source": it.get("source"), "tier": TIER.get(it.get("class")), "title": it.get("title"),
                     "url": it.get("url"), "first_seen": it.get("first_seen")})
@@ -237,7 +275,8 @@ def summary(state: dict | None, cell: str, voivodeship: str | None, now: dt.date
         "generated_at": (state or {}).get("generated_at"),
         "cell": cell,
         "voivodeship": voivodeship,
-        "official": current_official(state, voivodeship, now),
+        # None, not [], when the official layer cannot be told: an old document is not "no message".
+        "official": current_official(state, voivodeship, now) if official_available(state, now) else None,
         "notice": notice(state, lang),
         "attribution": attribution(state),
     }

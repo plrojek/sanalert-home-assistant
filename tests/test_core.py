@@ -55,11 +55,65 @@ def test_official_in_force_for_the_voivodeship_only():
     got = core.current_official(state(official=msgs), "lubelskie", NOW)
     assert [m["url"] for m in got] == ["u1"] and got[0]["tier"] == 3
     assert [m["url"] for m in core.current_official(state(official=msgs), "podkarpackie", NOW)] == ["u5"]
-    # 23:30 in Poland on the 23rd is still the 23rd (UTC 21:30): the date is Poland's.
+    # With no time of ours for its sending, an RCB alert stands on its own date in Poland: 23:59 in
+    # Poland on the 23rd is still the 23rd (UTC 21:59).
+    undated = [{**msgs[0], "first_seen": None}]
     late = dt.datetime(2026, 9, 23, 21, 59, tzinfo=dt.timezone.utc)
-    assert core.current_official(state(official=msgs), "lubelskie", late)[0]["url"] == "u1"
+    assert core.current_official(state(official=undated), "lubelskie", late)[0]["url"] == "u1"
     after_midnight = dt.datetime(2026, 9, 23, 22, 1, tzinfo=dt.timezone.utc)
-    assert core.current_official(state(official=msgs), "lubelskie", after_midnight) == []
+    assert core.current_official(state(official=undated), "lubelskie", after_midnight) == []
+
+
+def at_warsaw(day, hh, mm):
+    """A September 2026 moment given in Polish time (CEST, UTC+2)."""
+    return dt.datetime(2026, 9, day, hh, mm, tzinfo=core.WARSAW)
+
+
+def test_an_rcb_alert_stands_overnight_until_its_end():
+    # 24/25.09: the alert of 22:01 stood after midnight, and its end came at 05:40. The sensor went
+    # off at 00:00 and automations fired "end".
+    alert = {"source": "rcb", "class": "precaution", "title": "Alert RCB", "regions": ["lubelskie", "podkarpackie"],
+             "date": "2026-09-24", "cancelled": False, "url": "u", "first_seen": "2026-09-24T20:01:00Z", "updates": []}
+    for now in (at_warsaw(24, 22, 5), at_warsaw(25, 0, 30), at_warsaw(25, 5, 39)):
+        assert [m["url"] for m in core.current_official(state(official=[alert]), "lubelskie", now)] == ["u"], now
+    end = {"class": "cancellation", "text": "…", "regions": [], "ended": True, "again": False, "seen": "2026-09-25T03:40:00Z"}
+    ended = {**alert, "cancelled": True, "cancelled_seen": "2026-09-25T03:40:00Z", "updates": [end], "regions_in_force": []}
+    assert core.current_official(state(official=[ended]), "lubelskie", at_warsaw(25, 5, 41)) == []
+    # With no end at all, 12 hours after its latest sending; an end is not a sending.
+    assert core.current_official(state(official=[alert]), "lubelskie", at_warsaw(25, 10, 0))
+    assert core.current_official(state(official=[alert]), "lubelskie", at_warsaw(25, 10, 1)) == []
+    again = {**alert, "updates": [{"class": "precaution", "text": "…", "regions": ["lubelskie"], "ended": False,
+                                   "again": True, "seen": "2026-09-25T06:13:00Z"}]}
+    assert core.current_official(state(official=[again]), "lubelskie", at_warsaw(25, 12, 0))   # sent again: 12 h again
+
+
+def test_an_end_for_part_of_the_area_leaves_the_rest_in_force():
+    # 24.09, 07:05: the end went to lubelskie; podkarpackie stood (`regions_in_force`).
+    alert = {"source": "rcb", "class": "heightened", "title": "Alert RCB", "regions": ["lubelskie", "podkarpackie"],
+             "regions_in_force": ["podkarpackie"], "date": "2026-09-24", "cancelled": False, "url": "u",
+             "first_seen": "2026-09-24T04:10:00Z",
+             "updates": [{"class": "cancellation", "text": "…", "regions": ["lubelskie"], "ended": True, "again": False,
+                          "seen": "2026-09-24T05:05:00Z"}]}
+    now = at_warsaw(24, 7, 30)
+    assert core.current_official(state(official=[alert]), "lubelskie", now) == []
+    assert [m["tier"] for m in core.current_official(state(official=[alert]), "podkarpackie", now)] == [2]
+    # `null`: the page's messages could not be told apart, so the whole of `regions` stands.
+    unread = {**alert, "regions_in_force": None}
+    assert core.current_official(state(official=[unread]), "lubelskie", now)
+
+
+def test_the_official_layer_is_not_told_from_an_old_document_or_a_dead_feed():
+    assert core.official_available(state(age_s=59), NOW)
+    assert not core.official_available(None, NOW)
+    assert not core.official_available(state(age_s=61), NOW)
+    assert not core.official_available(state(health={"status": "ok", "sources": {"rcb": {"status": "unknown", "age_s": None}}}), NOW)
+    assert not core.official_available(state(health={"status": "ok", "sources": {"rso": {"status": "unknown", "age_s": None}}}), NOW)
+    # NEPTUN blind is not RCB blind: the official layer still stands on its own feeds.
+    assert core.official_available(state(levels_valid=False, health={"status": "unknown", "sources": {
+        "neptun": {"status": "unknown", "age_s": None}, "rcb": {"status": "ok", "age_s": 30}}}), NOW)
+    # The level sensor says None, not "no message", when it cannot be told.
+    assert core.summary(state(age_s=120), "511:156", "lubelskie", NOW, "pl")["official"] is None
+    assert core.summary(state(), "511:156", "lubelskie", NOW, "pl")["official"] == []
 
 
 def test_the_reason_in_three_languages():
