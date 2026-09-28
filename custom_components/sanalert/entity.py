@@ -19,9 +19,10 @@ class SanAlertEntity(CoordinatorEntity[SanAlertCoordinator]):
     def __init__(self, coordinator: SanAlertCoordinator, key: str) -> None:
         super().__init__(coordinator)
         entry = coordinator.config_entry
-        self._cell = entry.data[CONF_CELL]
-        self._voivodeship = entry.data[CONF_VOIVODESHIP]
-        self._language = entry.data[CONF_LANGUAGE]
+        conf = {**entry.data, **entry.options}          # the options: a new point or language
+        self._cell = conf[CONF_CELL]
+        self._voivodeship = conf[CONF_VOIVODESHIP]
+        self._language = conf[CONF_LANGUAGE]
         self._attr_unique_id = f"{entry.entry_id}_{key}"
         self._attr_translation_key = key
         self._attr_device_info = DeviceInfo(

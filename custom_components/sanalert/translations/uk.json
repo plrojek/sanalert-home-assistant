@@ -14,9 +14,22 @@
     "error": {
       "cannot_connect": "Не вдалося з’єднатися з SanAlert. Спробуйте за хвилину.",
       "outside_poland": "SanAlert визначає рівні лише для Польщі. Виберіть місце в Польщі."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Змінити місце",
+        "description": "Нова точка на мапі або інша мова описів. Місце залишається в Home Assistant.",
+        "data": {
+          "location": "Місце",
+          "language": "Мова описів"
+        }
+      }
     },
-    "abort": {
-      "already_configured": "Це місце (його квадрат близько 11 км) уже додано."
+    "error": {
+      "cannot_connect": "Не вдалося з’єднатися з SanAlert. Спробуйте за хвилину.",
+      "outside_poland": "SanAlert визначає рівні лише для Польщі. Виберіть місце в Польщі."
     }
   },
   "entity": {
