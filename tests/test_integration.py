@@ -8,6 +8,7 @@ import pytest
 from homeassistant import config_entries
 from homeassistant.const import CONF_LATITUDE, CONF_LOCATION, CONF_LONGITUDE, CONF_NAME
 from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_time_changed
 
@@ -142,10 +143,17 @@ async def test_two_places_in_one_square(hass, aioclient_mock):
     aioclient_mock.get(STATE_URL, json=state(dt_util.utcnow()))
     old = entry()
     old.add_to_hass(hass)
+    data = dict(old.data)
+    # Its entity as 1.0.0 registered it, renamed by its user: it must survive the migration.
+    registry = er.async_get(hass)
+    registry.async_get_or_create("sensor", DOMAIN, f"{old.entry_id}_level", config_entry=old,
+                                 suggested_object_id="moj_dom_poziom")
     assert await hass.config_entries.async_setup(old.entry_id)
     await hass.async_block_till_done()
-    assert old.unique_id is None and old.minor_version == 2
-    assert [s.state for s in hass.states.async_all("sensor")] == ["approaching"]
+    assert old.unique_id is None and old.minor_version == 2 and dict(old.data) == data
+    assert hass.states.get("sensor.moj_dom_poziom").state == "approaching"
+    assert [e.entity_id for e in er.async_entries_for_config_entry(registry, old.entry_id) if e.domain == "sensor"] \
+        == ["sensor.moj_dom_poziom"]
     # …so a school next door, in the same ~11 km square, is a place of its own.
     result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
     result = await hass.config_entries.flow.async_configure(result["flow_id"], {
