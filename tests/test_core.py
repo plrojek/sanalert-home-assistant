@@ -130,6 +130,29 @@ def test_the_reason_in_three_languages():
     assert core.explain("pl", "activity", [{"code": "something_new"}]) == ""
 
 
+def test_an_unknown_course_and_a_lost_track_are_told_as_such():
+    # API 0.20: an object with no course is never "not heading this way".
+    unknown = [{"code": "object_nearby", "kind": "cruise_missile", "km": 122, "course_known": False}]
+    assert core.explain("pl", "approaching", unknown) == "Pocisk manewrujący w odległości około 122 km, kierunek nieznany."
+    assert core.explain("en", "approaching", unknown) == "Cruise missile about 122 km away, direction unknown."
+    assert core.explain("uk", "approaching", unknown) == "Крилата ракета приблизно за 122 км, напрямок невідомий."
+    for known in ({"course_known": True}, {}):            # true, or an API older than 0.20
+        d = [{"code": "object_nearby", "kind": "drone", "km": 90, **known}]
+        assert core.explain("pl", "activity", d) == "Dron w odległości około 90 km, nie leci w tę stronę."
+    # A track that was heading here and vanished: the time in Poland, the kind in lower case.
+    lost = [{"code": "track_lost", "object": "n-17", "kind": "drone", "km": 48, "lost_at": "2026-09-28T07:22:00Z"}]
+    assert core.explain("pl", "activity", lost) == ("Źródła straciły ślad obiektu (dron) o 09:22, około 48 km stąd. "
+                                                    "Leciał w tę stronę i mógł lecieć dalej.")
+    assert core.explain("en", "activity", lost) == ("The sources lost track of an object (drone) at 09:22, about 48 km from here. "
+                                                    "It was heading this way and may have continued.")
+    assert core.explain("uk", "activity", lost) == ("Джерела втратили слід об’єкта (дрон) о 09:22, приблизно за 48 км звідси. "
+                                                    "Він летів у цей бік і міг летіти далі.")
+    assert core.explain("pl", "activity", [{**lost[0], "lost_at": None}]) == ""     # unreadable: the level alone
+    s = state(cells={"511:156": {"level": "activity", "risk": 30, "confidence": "medium", "drivers": lost}})
+    got = core.summary(s, "511:156", "lubelskie", NOW, "en")
+    assert got["reason_code"] == "track_lost" and got["lost_at"] == "2026-09-28T07:22:00Z" and got["km"] == 48
+
+
 def test_summary_for_automations():
     s = state(cells={"511:156": {"level": "near", "risk": 90, "confidence": "high",
                                  "drivers": [{"code": "object_near", "kind": "cruise_missile", "km": 18}]}})
@@ -139,3 +162,11 @@ def test_summary_for_automations():
     assert got["notice"] == "Unofficial." and "NEPTUN (https://neptun.in.ua)" in got["attribution"]
     blind = core.summary(state(age_s=120, cells=s["cells"]), "511:156", "lubelskie", NOW, "pl")
     assert blind["level"] == "no_data" and blind["rank"] is None and blind["risk"] is None and blind["km"] is None
+
+
+def test_the_attribution_names_each_source_with_its_role_and_link():
+    s = state(attribution=[{"name": "NEPTUN", "url": "https://neptun.in.ua", "role": "tracked objects, UA alarms"},
+                           {"name": "adsb.lol", "url": "https://adsb.lol", "role": "military aircraft (ADS-B), ODbL 1.0"}])
+    assert core.attribution(s) == ("SanAlert (sanalert.pl), NEPTUN — tracked objects, UA alarms (https://neptun.in.ua), "
+                                   "adsb.lol — military aircraft (ADS-B), ODbL 1.0 (https://adsb.lol)")
+    assert core.attribution(None) == "SanAlert (sanalert.pl), NEPTUN (https://neptun.in.ua)"

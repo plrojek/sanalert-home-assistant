@@ -218,8 +218,22 @@ def explain(lang: str, state_level: str, drivers: list[dict]) -> str:
         return t(lang, f"{kind} leci w tę stronę: około {eta} min, {km} km.", f"{kind} is heading this way: about {eta} min, {km} km.",
                  f"{kind} летить у цей бік: приблизно {eta} хв, {km} км.")
     if code == "object_nearby":
+        # API 0.20: `course_known` false is an object with no course at all, never "not this way";
+        # absent (an older API) keeps the old sentence.
+        if d.get("course_known") is False:
+            return t(lang, f"{kind} w odległości około {km} km, kierunek nieznany.", f"{kind} about {km} km away, direction unknown.",
+                     f"{kind} приблизно за {km} км, напрямок невідомий.")
         return t(lang, f"{kind} w odległości około {km} km, nie leci w tę stronę.", f"{kind} about {km} km away, not heading this way.",
                  f"{kind} приблизно за {km} км, не летить у цей бік.")
+    if code == "track_lost":
+        # A track that was heading here vanished from the feed (API 0.20): the cell holds for a while.
+        at = _parse(d.get("lost_at"))
+        if not at:
+            return ""
+        hm, low = at.astimezone(WARSAW).strftime("%H:%M"), kind.lower()
+        return t(lang, f"Źródła straciły ślad obiektu ({low}) o {hm}, około {km} km stąd. Leciał w tę stronę i mógł lecieć dalej.",
+                 f"The sources lost track of an object ({low}) at {hm}, about {km} km from here. It was heading this way and may have continued.",
+                 f"Джерела втратили слід об’єкта ({low}) о {hm}, приблизно за {km} км звідси. Він летів у цей бік і міг летіти далі.")
     if code == "ua_alarm_adjacent":
         threat = THREAT.get(d.get("threat") or "")
         what = f": {t(lang, *threat)}" if threat else ""
@@ -241,9 +255,11 @@ def notice(state: dict | None, lang: str) -> str | None:
 
 
 def attribution(state: dict | None) -> str:
-    """Rule 1: every source, with its link (NEPTUN's link is a condition of using its data)."""
-    items = (state or {}).get("attribution") or []
-    named = ", ".join(f"{a.get('name')} ({a.get('url')})" for a in items if a.get("name"))
+    """Rule 1: every source, with its link (NEPTUN's link is a condition of using its data), and its
+    role when the state gives one, "name — role": the role carries the licence (CC BY 4.0, ODbL,
+    CC BY 3.0 IGO)."""
+    items = [a for a in (state or {}).get("attribution") or [] if isinstance(a, dict) and a.get("name")]
+    named = ", ".join(f"{a['name']}{' — ' + a['role'] if a.get('role') else ''} ({a.get('url')})" for a in items)
     return "SanAlert (sanalert.pl), " + (named or "NEPTUN (https://neptun.in.ua)")
 
 
@@ -265,6 +281,8 @@ def summary(state: dict | None, cell: str, voivodeship: str | None, now: dt.date
         "kind": first.get("kind"),
         "km": first.get("km"),
         "eta_min": first.get("eta_min"),
+        "course_known": first.get("course_known"),
+        "lost_at": first.get("lost_at"),
         "oblast": first.get("oblast"),
         "raion": first.get("raion"),
         "threat": first.get("threat"),
