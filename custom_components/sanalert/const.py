@@ -1,8 +1,12 @@
 """SanAlert for Home Assistant: constants."""
+import json
 from datetime import timedelta
+from pathlib import Path
 
 DOMAIN = "sanalert"
-VERSION = "0.1.0"
+# The version HACS and Home Assistant show, read once when Home Assistant imports the integration (it
+# does so off the event loop), so the User-Agent never lags the release.
+VERSION = json.loads((Path(__file__).parent / "manifest.json").read_text(encoding="utf-8"))["version"]
 STATE_URL = "https://api.sanalert.pl/v1/state"
 GRID_URL = "https://api.sanalert.pl/v1/grid/1.json"
 # SanAlert's API contract, rule 6: a surface that is always on polls on its own schedule and says which of

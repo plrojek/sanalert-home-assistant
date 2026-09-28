@@ -14,9 +14,22 @@
     "error": {
       "cannot_connect": "Nie udało się połączyć z SanAlert. Spróbuj za chwilę.",
       "outside_poland": "SanAlert liczy poziomy tylko dla Polski. Wybierz miejsce w Polsce."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Zmień miejsce",
+        "description": "Nowy punkt na mapie albo inny język opisów. Miejsce zostaje w Home Assistant.",
+        "data": {
+          "location": "Miejsce",
+          "language": "Język opisów"
+        }
+      }
     },
-    "abort": {
-      "already_configured": "To miejsce (jego kwadrat ok. 11 km) jest już dodane."
+    "error": {
+      "cannot_connect": "Nie udało się połączyć z SanAlert. Spróbuj za chwilę.",
+      "outside_poland": "SanAlert liczy poziomy tylko dla Polski. Wybierz miejsce w Polsce."
     }
   },
   "entity": {

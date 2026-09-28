@@ -14,9 +14,22 @@
     "error": {
       "cannot_connect": "Could not reach SanAlert. Try again in a moment.",
       "outside_poland": "SanAlert works out levels for Poland only. Choose a place in Poland."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Change the place",
+        "description": "A new point on the map, or another language of the descriptions. The point stays in Home Assistant.",
+        "data": {
+          "location": "Place",
+          "language": "Language of the descriptions"
+        }
+      }
     },
-    "abort": {
-      "already_configured": "This place (its ~11 km square) is already added."
+    "error": {
+      "cannot_connect": "Could not reach SanAlert. Try again in a moment.",
+      "outside_poland": "SanAlert works out levels for Poland only. Choose a place in Poland."
     }
   },
   "entity": {
