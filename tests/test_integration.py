@@ -4,6 +4,7 @@ import datetime as dt
 import json
 from pathlib import Path
 
+import aiohttp
 import pytest
 from homeassistant import config_entries
 from homeassistant.const import CONF_LATITUDE, CONF_LOCATION, CONF_LONGITUDE, CONF_NAME
@@ -113,6 +114,86 @@ async def test_an_old_document_reads_no_data_not_calm(hass, aioclient_mock, free
     official_id = [s.entity_id for s in hass.states.async_all("binary_sensor")][0]
     assert hass.states.get(official_id).state == "unavailable"
 
+
+
+async def _set_up(hass, language="en"):
+    e = entry(language=language)
+    e.add_to_hass(hass)
+    assert await hass.config_entries.async_setup(e.entry_id)
+    await hass.async_block_till_done()
+    return ([s.entity_id for s in hass.states.async_all("sensor")][0],
+            [s.entity_id for s in hass.states.async_all("binary_sensor")][0])
+
+
+async def _later(hass, freezer, seconds):
+    freezer.tick(dt.timedelta(seconds=seconds))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+
+
+async def test_a_clock_running_behind_never_keeps_an_old_quiet_fresh(hass, aioclient_mock, freezer):
+    """Home Assistant's clock 2 h behind the server's: the document looks 2 h "in the future". After one
+    good fetch the API goes down; once Home Assistant has held the document for 60 s it is no data."""
+    server_now = dt_util.utcnow() + dt.timedelta(hours=2)
+    aioclient_mock.get(STATE_URL, json=state(server_now - dt.timedelta(seconds=5), level="quiet"))
+    sensor_id, official_id = await _set_up(hass)
+    assert hass.states.get(sensor_id).state == "quiet"
+    assert hass.states.get(official_id).state == "off"
+    aioclient_mock.clear_requests()
+    aioclient_mock.get(STATE_URL, exc=aiohttp.ClientError())
+    await _later(hass, freezer, 30)                 # held 30 s: still the document it has
+    assert hass.states.get(sensor_id).state == "quiet"
+    await _later(hass, freezer, 31)                 # held 61 s: no data, whatever the clock says
+    level = hass.states.get(sensor_id)
+    assert level.state == "no_data" and level.attributes["reason"].startswith("We have no data")
+    assert level.attributes["official"] is None
+    # What must stay with the data is still the document's.
+    assert level.attributes["notice"] == "Unofficial." and "NEPTUN (https://neptun.in.ua)" in level.attributes["attribution"]
+    assert hass.states.get(official_id).state == "unavailable"
+
+
+@pytest.mark.parametrize("behind", [dt.timedelta(0), dt.timedelta(hours=2)])
+async def test_documents_that_keep_coming_stay_fresh(hass, aioclient_mock, freezer, behind):
+    """Each new `generated_at` is held from when it came: a working API never reads no data, with Home
+    Assistant's clock right or behind."""
+    aioclient_mock.get(STATE_URL, json=state(dt_util.utcnow() + behind, seq=1))
+    sensor_id, official_id = await _set_up(hass)
+    assert hass.states.get(sensor_id).state == "approaching"
+    for seq in range(2, 10):                        # 80 s in all, a new document every 10 s
+        aioclient_mock.clear_requests()
+        aioclient_mock.get(STATE_URL, json=state(dt_util.utcnow() + behind + dt.timedelta(seconds=10), seq=seq))
+        await _later(hass, freezer, 10)
+        assert hass.states.get(sensor_id).state == "approaching"
+        assert hass.states.get(official_id).state == "off"
+
+
+async def test_a_clock_running_ahead_reads_no_data_never_quiet(hass, aioclient_mock, freezer):
+    """Home Assistant's clock ahead of the server's: the held time never makes a document younger than
+    the clock says. 2 h ahead, every document looks 2 h old: no data from the start (safe, if useless,
+    until the clock is put right)."""
+    aioclient_mock.get(STATE_URL, json=state(dt_util.utcnow() - dt.timedelta(hours=2), level="quiet"))
+    sensor_id, official_id = await _set_up(hass)
+    assert hass.states.get(sensor_id).state == "no_data"
+    assert hass.states.get(official_id).state == "unavailable"
+    aioclient_mock.clear_requests()
+    aioclient_mock.get(STATE_URL, json=state(dt_util.utcnow() - dt.timedelta(hours=2) + dt.timedelta(seconds=10),
+                                             level="quiet", seq=2))
+    await _later(hass, freezer, 10)
+    assert hass.states.get(sensor_id).state == "no_data"
+
+
+async def test_a_clock_slightly_ahead_reaches_no_data_by_its_own_count(hass, aioclient_mock, freezer):
+    """20 s ahead, with the API down: the clock's age passes 60 s after 41 s held, before the held time
+    does. The larger of the two decides, so the held time never delays no data."""
+    aioclient_mock.get(STATE_URL, json=state(dt_util.utcnow() - dt.timedelta(seconds=20), level="quiet"))
+    sensor_id, _ = await _set_up(hass)
+    assert hass.states.get(sensor_id).state == "quiet"
+    aioclient_mock.clear_requests()
+    aioclient_mock.get(STATE_URL, exc=aiohttp.ClientError())
+    await _later(hass, freezer, 30)                 # held 30 s, 50 s old by the clock
+    assert hass.states.get(sensor_id).state == "quiet"
+    await _later(hass, freezer, 11)                 # held 41 s, 61 s old by the clock
+    assert hass.states.get(sensor_id).state == "no_data"
 
 async def test_the_official_sensor_is_off_only_when_it_can_see(hass, aioclient_mock):
     now = dt_util.utcnow()

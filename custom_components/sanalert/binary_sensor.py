@@ -4,8 +4,9 @@ most after its latest sending; where an end went to part of its area, only the r
 official layer, shown apart: it never changes the level, and it says "for the voivodeship", because
 a message narrowed to some powiats is still counted for the whole of it here.
 
-Unavailable, never off, while it cannot be told: the document older than 60 s, or RCB's or RSO's
-feed out of reach. "Off" means no message is in force, not that we cannot see."""
+Unavailable, never off, while it cannot be told: the document older than 60 s (or held for more than
+60 s, freshness.py), or RCB's or RSO's feed out of reach. "Off" means no message is in force, not
+that we cannot see."""
 from __future__ import annotations
 
 from typing import Any
@@ -28,7 +29,7 @@ class SanAlertOfficialSensor(SanAlertEntity, BinarySensorEntity):
 
     @property
     def available(self) -> bool:
-        return core.official_available(self.coordinator.data, dt_util.utcnow())
+        return core.official_available(self.coordinator.current, dt_util.utcnow())
 
     @property
     def is_on(self) -> bool:

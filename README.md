@@ -27,6 +27,8 @@ Entity ids follow Home Assistant's language when the place is added: `sensor.dom
 
 **Blind is not calm.** When the document is missing, invalid or older than 60 s, the level reads
 `no_data`, never `quiet`, and the level entity stays available so an automation can act on it.
+The 60 s also count from when Home Assistant received the document, so a Home Assistant clock that
+runs behind cannot keep an old level fresh while SanAlert's API is down.
 
 The official sensor is the official layer, apart from the level: it never changes the level, and it
 is for the whole voivodeship, even when a message names only some powiats. An RCB alert stays on
@@ -99,9 +101,10 @@ uv venv --python 3.13 .venv && uv pip install --python .venv/bin/python pytest-h
 .venv/bin/python -m pytest          # from integrations/home-assistant/
 ```
 
-`tests/test_core.py` checks the contract's rules with no Home Assistant; `tests/test_integration.py`
-adds a place, reads both entities, and checks the 304 path, "no data" after 60 s, the official
-sensor going unavailable, two places in one square and the options.
+`tests/test_core.py` checks the contract's rules with no Home Assistant, and `tests/test_freshness.py`
+the time a document has been held, on both clocks; `tests/test_integration.py` adds a place, reads
+both entities, and checks the 304 path, "no data" after 60 s (with Home Assistant's clock right,
+behind or ahead), the official sensor going unavailable, two places in one square and the options.
 
 ## Licence
 
