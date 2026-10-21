@@ -12,6 +12,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
 from .const import DOMAIN, SCAN_INTERVAL, STATE_URL, USER_AGENT
+from .freshness import Held
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -19,12 +20,20 @@ _LOGGER = logging.getLogger(__name__)
 class SanAlertCoordinator(DataUpdateCoordinator[dict[str, Any] | None]):
     """Holds the last state document. A failed request keeps the last one: its `generated_at` ages,
     and after 60 s the place reads "no data" (rule 2: blind is not calm), so the entities stay
-    available and never fall back to a calm they cannot know."""
+    available and never fall back to a calm they cannot know. The 60 s also run from when Home
+    Assistant first got that `generated_at` (freshness.py), so a clock that runs behind cannot keep
+    it fresh: the entities read `current`, never `data`, for the rules."""
 
     def __init__(self, hass: HomeAssistant, entry) -> None:
         super().__init__(hass, _LOGGER, config_entry=entry, name=DOMAIN, update_interval=SCAN_INTERVAL)
         self._etag: str | None = None
         self._failing = False
+        self.held = Held()
+
+    @property
+    def current(self) -> dict[str, Any] | None:
+        """The document the rules may see: none once it has been held for more than 60 s."""
+        return self.held.current(self.data)
 
     async def _async_update_data(self) -> dict[str, Any] | None:
         headers = {"User-Agent": USER_AGENT, "Accept": "application/json"}
@@ -46,4 +55,7 @@ class SanAlertCoordinator(DataUpdateCoordinator[dict[str, Any] | None]):
         if self._failing:
             _LOGGER.info("SanAlert state available again")
         self._failing = False
-        return data if isinstance(data, dict) else self.data
+        if not isinstance(data, dict):
+            return self.data
+        self.held.saw(data)
+        return data

@@ -37,7 +37,12 @@ class SanAlertEntity(CoordinatorEntity[SanAlertCoordinator]):
         return True
 
     def _summary(self) -> dict[str, Any]:
-        return core.summary(self.coordinator.data, self._cell, self._voivodeship, dt_util.utcnow(), self._language)
+        # The rules see `current`: no document once it has been held for more than 60 s, whatever this
+        # machine's clock says (freshness.py). The notice and the sources stay those of the data held.
+        held = self.coordinator.data
+        s = core.summary(self.coordinator.current, self._cell, self._voivodeship, dt_util.utcnow(), self._language)
+        s.update(notice=core.notice(held, self._language), attribution=core.attribution(held))
+        return s
 
     @property
     def attribution(self) -> str:
