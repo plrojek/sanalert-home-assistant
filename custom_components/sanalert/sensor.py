@@ -20,6 +20,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: SanAlertConfigEntry,
 class SanAlertLevelSensor(SanAlertEntity, SensorEntity):
     _attr_device_class = SensorDeviceClass.ENUM
     _attr_options = list(core.STATES)
+    # How old the data is reaches an automation (rule 2) without a database row every 10 s: these two
+    # move with every update and are kept out of the recorder (copy cut, AX; 1.2.0).
+    _unrecorded_attributes = frozenset({"data_age_s", "generated_at"})
 
     @property
     def native_value(self) -> str:
@@ -28,9 +31,7 @@ class SanAlertLevelSensor(SanAlertEntity, SensorEntity):
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         s = self._summary()
-        # Only what changes with the situation: the document's age moves every 10 s and would write
-        # a state row to Home Assistant's database each time. Rule 2 still turns an old document
-        # into "no_data" (core.level).
-        for key in ("level", "data_age_s", "generated_at"):
-            s.pop(key)
+        # The level is the state itself. `data_age_s` and `generated_at` stay, out of the recorder
+        # (`_unrecorded_attributes`); rule 2 still turns an old document into "no_data" (core.level).
+        s.pop("level")
         return s

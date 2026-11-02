@@ -1,7 +1,7 @@
 """SanAlert: the unofficial threat level from the air for one place in Poland (sanalert.pl).
 
 Not an official warning system: it does not replace sirens, Alert RCB or instructions from the
-services. The place stays in Home Assistant; only the public state document is fetched."""
+authorities. The place stays in Home Assistant; only the public state document is fetched."""
 from __future__ import annotations
 
 from homeassistant.config_entries import ConfigEntry
