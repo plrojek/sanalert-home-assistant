@@ -81,7 +81,10 @@ async def test_the_level_its_reason_and_the_official_layer(hass, aioclient_mock)
     assert level.attributes["reason"] == "Dron leci w tę stronę: około 20 min, 61 km."
     assert level.attributes["rank"] == 2 and level.attributes["eta_min"] == 20
     assert "NEPTUN (https://neptun.in.ua)" in level.attributes["attribution"]
-    assert "data_age_s" not in level.attributes and "generated_at" not in level.attributes
+    # 1.2.0 (copy cut, AX): how old the data is reaches an automation, kept out of the recorder.
+    assert isinstance(level.attributes["data_age_s"], int) and level.attributes["generated_at"]
+    from custom_components.sanalert.sensor import SanAlertLevelSensor
+    assert {"data_age_s", "generated_at"} <= SanAlertLevelSensor._unrecorded_attributes
     official_state = [s for s in hass.states.async_all("binary_sensor")][0]
     assert official_state.state == "on" and official_state.attributes["highest_rcb_tier"] == 3
     # The one request said who is asking, and nothing else about anybody.

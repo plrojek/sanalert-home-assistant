@@ -41,9 +41,9 @@ class SanAlertEntity(CoordinatorEntity[SanAlertCoordinator]):
         # machine's clock says (freshness.py). The notice and the sources stay those of the data held.
         held = self.coordinator.data
         s = core.summary(self.coordinator.current, self._cell, self._voivodeship, dt_util.utcnow(), self._language)
-        s.update(notice=core.notice(held, self._language), attribution=core.attribution(held))
+        s.update(notice=core.notice(held, self._language), attribution=core.attribution(held, self._language))
         return s
 
     @property
     def attribution(self) -> str:
-        return core.attribution(self.coordinator.data)
+        return core.attribution(self.coordinator.data, self._language)

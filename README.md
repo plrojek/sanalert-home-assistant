@@ -2,7 +2,7 @@
 
 The unofficial threat level from the air for a place in Poland, as a Home Assistant sensor, so the
 house can react: lights, a speaker, waking people at "Blisko". Not an official warning system: it
-does not replace sirens, Alert RCB or instructions from the services.
+does not replace sirens, Alert RCB or instructions from the authorities.
 
 ## What it does, and what it sends
 
@@ -22,7 +22,7 @@ Entity ids follow Home Assistant's language when the place is added: `sensor.dom
 
 | Entity | State | Attributes |
 |---|---|---|
-| `sensor.<place>_level` (Poziom / Рівень) | `quiet`, `activity`, `approaching`, `near`, `no_data`, `out_of_range` | `rank` (0–3, none without data), `reason` (the website's sentence, in the chosen language), `reason_code`, `kind`, `km`, `eta_min`, `course_known`, `lost_at`, `oblast`, `raion`, `threat`, `risk`, `confidence`, `degraded`, `official` (none while the official layer cannot be told), `notice`, `attribution` |
+| `sensor.<place>_level` (Poziom / Рівень) | `quiet`, `activity`, `approaching`, `near`, `no_data`, `out_of_range` | `rank` (0–3, none without data), `reason` (the website's sentence, in the chosen language), `reason_code`, `kind`, `km`, `eta_min`, `course_known`, `lost_at`, `oblast`, `raion`, `threat`, `risk`, `confidence`, `degraded`, `official` (none while the official layer cannot be told), `notice`, `attribution` (each source's role in the chosen language), `data_age_s` and `generated_at` (since 1.2.0; not written to the recorder, so they move without database rows) |
 | `binary_sensor.<place>_official` (Komunikat oficjalny dla województwa) | on while an RCB or RSO message about a threat from the air is in force for the voivodeship; unavailable while that cannot be told | `messages` (source, RCB tier 1–3, title, url, `first_seen`), `highest_rcb_tier` |
 
 **Blind is not calm.** When the document is missing, invalid or older than 60 s, the level reads

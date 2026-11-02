@@ -170,3 +170,22 @@ def test_the_attribution_names_each_source_with_its_role_and_link():
     assert core.attribution(s) == ("SanAlert (sanalert.pl), NEPTUN — tracked objects, UA alarms (https://neptun.in.ua), "
                                    "adsb.lol — military aircraft (ADS-B), ODbL 1.0 (https://adsb.lol)")
     assert core.attribution(None) == "SanAlert (sanalert.pl), NEPTUN (https://neptun.in.ua)"
+
+
+def test_the_attribution_says_each_role_in_the_readers_language_when_the_state_has_it():
+    """API 0.26.3 `roles`: a Polish entity no longer shows an English role; without `roles`, `role` as before."""
+    s = {"attribution": [{"name": "NEPTUN", "url": "https://neptun.in.ua", "role": "tracked objects, UA alarms",
+                          "roles": {"pl": "śledzone obiekty, alarmy w Ukrainie", "en": "tracked objects, UA alarms",
+                                    "uk": "відстежувані об’єкти, тривоги в Україні"}},
+                         {"name": "RCB", "url": "https://www.gov.pl/web/rcb", "role": "official layer"}]}
+    assert core.attribution(s, "pl") == ("SanAlert (sanalert.pl), NEPTUN — śledzone obiekty, alarmy w Ukrainie "
+                                         "(https://neptun.in.ua), RCB — official layer (https://www.gov.pl/web/rcb)")
+    assert "tracked objects" in core.attribution(s)
+
+
+def test_full_official_messages_only_when_asked():
+    msg = {"source": "rso", "class": "other_air", "title": "T", "text": "X", "url": "u", "regions": ["lubelskie"]}
+    small = core.current_official(state(official=[msg]), "lubelskie", NOW)[0]
+    assert "text" not in small and set(small) == {"source", "tier", "title", "url", "first_seen"}
+    full = core.current_official(state(official=[msg]), "lubelskie", NOW, full=True)[0]
+    assert full["text"] == "X" and full["class"] == "other_air" and full["regions_in_force"] == ["lubelskie"] and full["powiats"] == []

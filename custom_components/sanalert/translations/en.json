@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Add a place",
-        "description": "SanAlert shows whether drones or missiles tracked across the border are heading for this place. It is not an official warning system: it does not replace sirens, Alert RCB or instructions from the services. The place stays in Home Assistant; it only fetches the public state document that everybody gets.",
+        "description": "SanAlert shows whether drones or missiles tracked across the border are heading for this place. It is not an official warning system: it does not replace sirens, Alert RCB or instructions from the authorities. The place stays in Home Assistant; it only fetches the public state document that everybody gets.",
         "data": {
           "name": "Name",
           "location": "Place",
